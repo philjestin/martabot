@@ -34,15 +34,34 @@ mutation IssueCreate($title: String!, $description: String!, $teamId: String!, $
   }
 }`
 
+const issueCreateWithProjectMutation = `
+mutation IssueCreate($title: String!, $description: String!, $teamId: String!, $priority: Int!, $projectId: String!) {
+  issueCreate(input: { title: $title, description: $description, teamId: $teamId, priority: $priority, projectId: $projectId }) {
+    success
+    issue {
+      id
+      identifier
+      url
+    }
+  }
+}`
+
 func (c *Client) CreateIssue(input IssueCreateInput) (*IssueCreateResponse, error) {
+	query := issueCreateMutation
+	vars := map[string]any{
+		"title":       input.Title,
+		"description": input.Description,
+		"teamId":      input.TeamID,
+		"priority":    input.Priority,
+	}
+	if input.ProjectID != "" {
+		query = issueCreateWithProjectMutation
+		vars["projectId"] = input.ProjectID
+	}
+
 	body := map[string]any{
-		"query": issueCreateMutation,
-		"variables": map[string]any{
-			"title":       input.Title,
-			"description": input.Description,
-			"teamId":      input.TeamID,
-			"priority":    input.Priority,
-		},
+		"query":     query,
+		"variables": vars,
 	}
 
 	jsonBody, err := json.Marshal(body)

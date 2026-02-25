@@ -5,6 +5,7 @@ type IssueCreateInput struct {
 	Description string `json:"description"`
 	TeamID      string `json:"teamId"`
 	Priority    int    `json:"priority"`
+	ProjectID   string `json:"projectId,omitempty"`
 }
 
 type IssueCreateResponse struct {

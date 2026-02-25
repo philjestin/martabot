@@ -147,6 +147,7 @@ func (p *Processor) processThread(ctx context.Context, parentTS, user, text stri
 		Description: result.Ticket.Description,
 		TeamID:      p.cfg.LinearTeamID,
 		Priority:    result.Ticket.Priority,
+		ProjectID:   p.cfg.LinearProjectID,
 	})
 	if err != nil {
 		return fmt.Errorf("creating linear issue: %w", err)

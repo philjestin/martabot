@@ -16,8 +16,9 @@ type Config struct {
 	GCPRegion   string
 	ClaudeModel string
 
-	LinearAPIKey string
-	LinearTeamID string
+	LinearAPIKey   string
+	LinearTeamID   string
+	LinearProjectID string
 
 	DryRun  bool
 	Verbose bool
@@ -34,6 +35,7 @@ func Load(dryRun, verbose bool) (*Config, error) {
 		ClaudeModel: os.Getenv("CLAUDE_MODEL"),
 		LinearAPIKey:    os.Getenv("LINEAR_API_KEY"),
 		LinearTeamID:    os.Getenv("LINEAR_TEAM_ID"),
+		LinearProjectID: os.Getenv("LINEAR_PROJECT_ID"),
 		DryRun:          dryRun,
 		Verbose:         verbose,
 	}

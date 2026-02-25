@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/vertex"
@@ -55,8 +56,20 @@ func (c *Client) Evaluate(ctx context.Context, threadText string) (*EvaluationRe
 		return nil, fmt.Errorf("no text content in Claude response")
 	}
 
+	// Strip markdown code fences if present (e.g. ```json ... ```)
+	trimmed := strings.TrimSpace(text)
+	if strings.HasPrefix(trimmed, "```") {
+		if i := strings.Index(trimmed, "\n"); i != -1 {
+			trimmed = trimmed[i+1:]
+		}
+		if strings.HasSuffix(trimmed, "```") {
+			trimmed = strings.TrimSuffix(trimmed, "```")
+		}
+		trimmed = strings.TrimSpace(trimmed)
+	}
+
 	var result EvaluationResult
-	if err := json.Unmarshal([]byte(text), &result); err != nil {
+	if err := json.Unmarshal([]byte(trimmed), &result); err != nil {
 		return nil, fmt.Errorf("failed to parse Claude response as JSON: %w\nraw response: %s", err, text)
 	}
 
