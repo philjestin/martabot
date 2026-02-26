@@ -10,6 +10,7 @@ type Config struct {
 	SlackBotToken  string
 	SlackChannelID string
 	SeenEmoji      string
+	IgnoreEmoji    string
 	PostReply      bool
 
 	GCPProject  string
@@ -29,6 +30,7 @@ func Load(dryRun, verbose bool) (*Config, error) {
 		SlackBotToken:   os.Getenv("SLACK_BOT_TOKEN"),
 		SlackChannelID:  os.Getenv("SLACK_CHANNEL_ID"),
 		SeenEmoji:       os.Getenv("SEEN_EMOJI"),
+		IgnoreEmoji:     os.Getenv("IGNORE_EMOJI"),
 		PostReply:       true,
 		GCPProject:  os.Getenv("GCP_PROJECT"),
 		GCPRegion:   os.Getenv("GCP_REGION"),
@@ -42,6 +44,9 @@ func Load(dryRun, verbose bool) (*Config, error) {
 
 	if cfg.SeenEmoji == "" {
 		cfg.SeenEmoji = "eyes"
+	}
+	if cfg.IgnoreEmoji == "" {
+		cfg.IgnoreEmoji = "no_entry_sign"
 	}
 	if cfg.ClaudeModel == "" {
 		cfg.ClaudeModel = "claude-sonnet-4-5"

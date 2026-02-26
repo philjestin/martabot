@@ -68,6 +68,14 @@ func (p *Processor) Run(ctx context.Context) error {
 			continue
 		}
 
+		if p.slack.HasIgnoreReaction(msg) {
+			if p.cfg.Verbose {
+				log.Printf("  Ignored ts=%s", msg.Timestamp)
+			}
+			stats.Seen++
+			continue
+		}
+
 		if err := p.processThread(ctx, msg, &stats); err != nil {
 			log.Printf("  Error processing thread ts=%s: %v", msg.Timestamp, err)
 			stats.Errors++

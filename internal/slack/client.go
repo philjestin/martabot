@@ -14,14 +14,15 @@ type Client struct {
 	api       *slack.Client
 	token     string
 	channelID string
-	seenEmoji string
-	botUserID string
+	seenEmoji   string
+	ignoreEmoji string
+	botUserID   string
 
 	userNamesMu sync.Mutex
 	userNames   map[string]string
 }
 
-func NewClient(token, channelID, seenEmoji string) (*Client, error) {
+func NewClient(token, channelID, seenEmoji, ignoreEmoji string) (*Client, error) {
 	api := slack.New(token)
 
 	resp, err := api.AuthTest()
@@ -30,12 +31,13 @@ func NewClient(token, channelID, seenEmoji string) (*Client, error) {
 	}
 
 	return &Client{
-		api:       api,
-		token:     token,
-		channelID: channelID,
-		seenEmoji: seenEmoji,
-		botUserID: resp.UserID,
-		userNames: make(map[string]string),
+		api:         api,
+		token:       token,
+		channelID:   channelID,
+		seenEmoji:   seenEmoji,
+		ignoreEmoji: ignoreEmoji,
+		botUserID:   resp.UserID,
+		userNames:   make(map[string]string),
 	}, nil
 }
 
@@ -68,6 +70,15 @@ func (c *Client) FetchThreadParents() ([]slack.Message, error) {
 func (c *Client) HasSeenReaction(msg slack.Message) bool {
 	for _, r := range msg.Reactions {
 		if r.Name == c.seenEmoji {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Client) HasIgnoreReaction(msg slack.Message) bool {
+	for _, r := range msg.Reactions {
+		if r.Name == c.ignoreEmoji {
 			return true
 		}
 	}
