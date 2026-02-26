@@ -5,12 +5,13 @@ A one-shot CLI tool that monitors a Slack feedback channel, uses Claude (via Ver
 ## How it works
 
 1. Fetches all top-level messages from a configured Slack channel
-2. Skips any message already marked with the "seen" emoji (`:eyes:`)
-3. For unseen threads, fetches all replies
+2. Skips bot messages, threads with the "seen" emoji (`:eyes:`), and threads with the "ignore" emoji (`:no_entry_sign:`)
+3. For unseen threads, fetches all replies and resolves Slack user IDs to display names
 4. Sends the formatted thread to Claude — it decides if a ticket is warranted and generates title, description, and priority
-5. If yes: creates a Linear ticket via GraphQL API
-6. Adds the "seen" emoji reaction to the Slack message
-7. Optionally replies in the thread with a link to the created ticket
+5. If yes: downloads any screenshots/images from the thread and uploads them to Linear
+6. Creates a Linear ticket via GraphQL API with the description, Slack thread link, and uploaded images
+7. Adds the "seen" emoji reaction to the Slack message
+8. Optionally replies in the thread with a link to the created ticket
 
 ## Prerequisites
 
@@ -33,12 +34,14 @@ cp .env.example .env
 | `SLACK_BOT_TOKEN` | yes | — | Slack bot token (`xoxb-...`) |
 | `SLACK_CHANNEL_ID` | yes | — | Channel ID to monitor |
 | `SEEN_EMOJI` | no | `eyes` | Emoji name for marking processed threads |
+| `IGNORE_EMOJI` | no | `no_entry_sign` | Emoji name for manually ignoring threads |
 | `POST_REPLY` | no | `true` | Reply in thread with ticket link |
 | `GCP_PROJECT` | yes | — | Google Cloud project ID |
 | `GCP_REGION` | yes | — | Vertex AI region (e.g. `us-east5`) |
 | `CLAUDE_MODEL` | no | `claude-sonnet-4-5` | Model for evaluation |
 | `LINEAR_API_KEY` | yes | — | Linear personal API key |
 | `LINEAR_TEAM_ID` | yes | — | Linear team UUID for ticket creation |
+| `LINEAR_PROJECT_ID` | no | — | Linear project UUID (assigns tickets to a project) |
 
 ## Usage
 
@@ -64,6 +67,8 @@ go run main.go
    - `reactions:read`
    - `reactions:write`
    - `chat:write`
+   - `users:read` (for resolving user display names)
+   - `files:read` (for downloading images/screenshots)
 3. Click **Install to Workspace** and authorize
 4. Copy the **Bot User OAuth Token** (`xoxb-...`) into your `.env`
 5. Invite the bot to your channel: `/invite @YourBotName`
