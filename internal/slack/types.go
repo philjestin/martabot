@@ -5,10 +5,17 @@ import (
 	"strings"
 )
 
+type FileAttachment struct {
+	Name     string
+	MimeType string
+	URL      string
+}
+
 type Message struct {
 	User      string
 	Text      string
 	Timestamp string
+	Files     []FileAttachment
 }
 
 type Thread struct {

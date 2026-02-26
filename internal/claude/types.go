@@ -1,10 +1,8 @@
 package claude
 
 type TicketSuggestion struct {
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Priority    int      `json:"priority"`
-	Labels      []string `json:"labels"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
 }
 
 type EvaluationResult struct {

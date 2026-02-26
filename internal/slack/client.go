@@ -2,15 +2,23 @@ package slack
 
 import (
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"sync"
 
 	"github.com/slack-go/slack"
 )
 
 type Client struct {
 	api       *slack.Client
+	token     string
 	channelID string
 	seenEmoji string
 	botUserID string
+
+	userNamesMu sync.Mutex
+	userNames   map[string]string
 }
 
 func NewClient(token, channelID, seenEmoji string) (*Client, error) {
@@ -23,9 +31,11 @@ func NewClient(token, channelID, seenEmoji string) (*Client, error) {
 
 	return &Client{
 		api:       api,
+		token:     token,
 		channelID: channelID,
 		seenEmoji: seenEmoji,
 		botUserID: resp.UserID,
+		userNames: make(map[string]string),
 	}, nil
 }
 
@@ -90,6 +100,7 @@ func (c *Client) BuildThread(parent slack.Message) (*Thread, error) {
 			User:      parent.User,
 			Text:      parent.Text,
 			Timestamp: parent.Timestamp,
+			Files:     ExtractImageFiles(parent.Files),
 		},
 	}
 
@@ -106,6 +117,7 @@ func (c *Client) BuildThread(parent slack.Message) (*Thread, error) {
 				User:      r.User,
 				Text:      r.Text,
 				Timestamp: r.Timestamp,
+				Files:     ExtractImageFiles(r.Files),
 			})
 		}
 	}
@@ -120,6 +132,17 @@ func (c *Client) AddSeenReaction(messageTS string) error {
 	})
 }
 
+func (c *Client) GetPermalink(messageTS string) (string, error) {
+	permalink, err := c.api.GetPermalink(&slack.PermalinkParameters{
+		Channel: c.channelID,
+		Ts:      messageTS,
+	})
+	if err != nil {
+		return "", fmt.Errorf("getting permalink: %w", err)
+	}
+	return permalink, nil
+}
+
 func (c *Client) PostThreadReply(parentTS, text string) error {
 	_, _, err := c.api.PostMessage(
 		c.channelID,
@@ -127,4 +150,80 @@ func (c *Client) PostThreadReply(parentTS, text string) error {
 		slack.MsgOptionTS(parentTS),
 	)
 	return err
+}
+
+func (c *Client) ResolveUserName(userID string) string {
+	c.userNamesMu.Lock()
+	if name, ok := c.userNames[userID]; ok {
+		c.userNamesMu.Unlock()
+		return name
+	}
+	c.userNamesMu.Unlock()
+
+	user, err := c.api.GetUserInfo(userID)
+	if err != nil {
+		c.userNamesMu.Lock()
+		c.userNames[userID] = userID
+		c.userNamesMu.Unlock()
+		return userID
+	}
+
+	name := user.Profile.DisplayName
+	if name == "" {
+		name = user.RealName
+	}
+	if name == "" {
+		name = userID
+	}
+
+	c.userNamesMu.Lock()
+	c.userNames[userID] = name
+	c.userNamesMu.Unlock()
+	return name
+}
+
+func ExtractImageFiles(files []slack.File) []FileAttachment {
+	var images []FileAttachment
+	for _, f := range files {
+		if !strings.HasPrefix(f.Mimetype, "image/") {
+			continue
+		}
+		url := f.URLPrivateDownload
+		if url == "" {
+			url = f.URLPrivate
+		}
+		if url == "" {
+			continue
+		}
+		images = append(images, FileAttachment{
+			Name:     f.Name,
+			MimeType: f.Mimetype,
+			URL:      url,
+		})
+	}
+	return images
+}
+
+func (c *Client) DownloadFile(url string) ([]byte, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating download request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("downloading file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download returned status %d", resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading download body: %w", err)
+	}
+	return data, nil
 }
