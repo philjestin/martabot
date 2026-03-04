@@ -1,10 +1,13 @@
 package linear
 
 type IssueCreateInput struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	TeamID      string `json:"teamId"`
-	ProjectID   string `json:"projectId,omitempty"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	TeamID      string   `json:"teamId"`
+	ProjectID   string   `json:"projectId,omitempty"`
+	LabelIDs    []string `json:"labelIds,omitempty"`
+	AssigneeID  string   `json:"assigneeId,omitempty"`
+	StateID     string   `json:"stateId,omitempty"`
 }
 
 type FileUploadResponse struct {
@@ -35,6 +38,29 @@ type IssueCreateResponse struct {
 				URL        string `json:"url"`
 			} `json:"issue"`
 		} `json:"issueCreate"`
+	} `json:"data"`
+	Errors []struct {
+		Message string `json:"message"`
+	} `json:"errors"`
+}
+
+type DocumentResponse struct {
+	Data struct {
+		Document struct {
+			ID      string `json:"id"`
+			Content string `json:"content"`
+		} `json:"document"`
+	} `json:"data"`
+	Errors []struct {
+		Message string `json:"message"`
+	} `json:"errors"`
+}
+
+type DocumentUpdateResponse struct {
+	Data struct {
+		DocumentUpdate struct {
+			Success bool `json:"success"`
+		} `json:"documentUpdate"`
 	} `json:"data"`
 	Errors []struct {
 		Message string `json:"message"`

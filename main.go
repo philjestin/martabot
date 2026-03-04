@@ -36,7 +36,7 @@ func main() {
 		log.Println("Running in dry-run mode (no tickets will be created, no reactions added)")
 	}
 
-	sc, err := mslack.NewClient(cfg.SlackBotToken, cfg.SlackChannelID, cfg.SeenEmoji, cfg.IgnoreEmoji)
+	sc, err := mslack.NewClient(cfg.SlackBotToken, cfg.SeenEmoji, cfg.IgnoreEmoji)
 	if err != nil {
 		log.Fatalf("Failed to initialize Slack client: %v", err)
 	}

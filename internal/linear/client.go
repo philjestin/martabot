@@ -36,21 +36,24 @@ mutation FileUpload($contentType: String!, $filename: String!, $size: Int!) {
   }
 }`
 
-const issueCreateMutation = `
-mutation IssueCreate($title: String!, $description: String!, $teamId: String!) {
-  issueCreate(input: { title: $title, description: $description, teamId: $teamId }) {
-    success
-    issue {
-      id
-      identifier
-      url
-    }
+const documentQuery = `
+query Document($id: String!) {
+  document(id: $id) {
+    id
+    content
   }
 }`
 
-const issueCreateWithProjectMutation = `
-mutation IssueCreate($title: String!, $description: String!, $teamId: String!, $projectId: String!) {
-  issueCreate(input: { title: $title, description: $description, teamId: $teamId, projectId: $projectId }) {
+const documentUpdateMutation = `
+mutation DocumentUpdate($id: String!, $input: DocumentUpdateInput!) {
+  documentUpdate(id: $id, input: $input) {
+    success
+  }
+}`
+
+const issueCreateMutation = `
+mutation IssueCreate($input: IssueCreateInput!) {
+  issueCreate(input: $input) {
     success
     issue {
       id
@@ -61,19 +64,12 @@ mutation IssueCreate($title: String!, $description: String!, $teamId: String!, $
 }`
 
 func (c *Client) CreateIssue(input IssueCreateInput) (*IssueCreateResponse, error) {
-	query := issueCreateMutation
 	vars := map[string]any{
-		"title":       input.Title,
-		"description": input.Description,
-		"teamId":      input.TeamID,
-	}
-	if input.ProjectID != "" {
-		query = issueCreateWithProjectMutation
-		vars["projectId"] = input.ProjectID
+		"input": input,
 	}
 
 	body := map[string]any{
-		"query":     query,
+		"query":     issueCreateMutation,
 		"variables": vars,
 	}
 
@@ -192,4 +188,115 @@ func (c *Client) UploadFile(filename, contentType string, data []byte) (string, 
 	}
 
 	return upload.AssetURL, nil
+}
+
+func (c *Client) GetDocument(id string) (*DocumentResponse, error) {
+	body := map[string]any{
+		"query": documentQuery,
+		"variables": map[string]any{
+			"id": id,
+		},
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", graphqlEndpoint, bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", c.apiKey)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("linear API returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result DocumentResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("parsing response: %w", err)
+	}
+
+	if len(result.Errors) > 0 {
+		return nil, fmt.Errorf("linear GraphQL error: %s", result.Errors[0].Message)
+	}
+
+	return &result, nil
+}
+
+func (c *Client) UpdateDocument(id, content string) error {
+	body := map[string]any{
+		"query": documentUpdateMutation,
+		"variables": map[string]any{
+			"id": id,
+			"input": map[string]any{
+				"content": content,
+			},
+		},
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("marshaling request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", graphqlEndpoint, bytes.NewReader(jsonBody))
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", c.apiKey)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("reading response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("linear API returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result DocumentUpdateResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return fmt.Errorf("parsing response: %w", err)
+	}
+
+	if len(result.Errors) > 0 {
+		return fmt.Errorf("linear GraphQL error: %s", result.Errors[0].Message)
+	}
+
+	if !result.Data.DocumentUpdate.Success {
+		return fmt.Errorf("linear document update reported failure")
+	}
+
+	return nil
+}
+
+func (c *Client) AppendToDocument(id, newContent string) error {
+	doc, err := c.GetDocument(id)
+	if err != nil {
+		return fmt.Errorf("fetching document: %w", err)
+	}
+
+	updated := doc.Data.Document.Content + "\n\n" + newContent
+	return c.UpdateDocument(id, updated)
 }

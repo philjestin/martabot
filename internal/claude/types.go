@@ -5,8 +5,14 @@ type TicketSuggestion struct {
 	Description string `json:"description"`
 }
 
+type InsightSummary struct {
+	Title   string `json:"title"`
+	Summary string `json:"summary"`
+}
+
 type EvaluationResult struct {
-	ShouldCreateTicket bool              `json:"should_create_ticket"`
-	Reason             string            `json:"reason"`
-	Ticket             *TicketSuggestion `json:"ticket,omitempty"`
+	Category string             `json:"category"`
+	Reason   string             `json:"reason"`
+	Tickets  []TicketSuggestion `json:"tickets,omitempty"`
+	Insight  *InsightSummary    `json:"insight,omitempty"`
 }

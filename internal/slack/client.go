@@ -11,9 +11,8 @@ import (
 )
 
 type Client struct {
-	api       *slack.Client
-	token     string
-	channelID string
+	api         *slack.Client
+	token       string
 	seenEmoji   string
 	ignoreEmoji string
 	botUserID   string
@@ -22,7 +21,7 @@ type Client struct {
 	userNames   map[string]string
 }
 
-func NewClient(token, channelID, seenEmoji, ignoreEmoji string) (*Client, error) {
+func NewClient(token, seenEmoji, ignoreEmoji string) (*Client, error) {
 	api := slack.New(token)
 
 	resp, err := api.AuthTest()
@@ -33,7 +32,6 @@ func NewClient(token, channelID, seenEmoji, ignoreEmoji string) (*Client, error)
 	return &Client{
 		api:         api,
 		token:       token,
-		channelID:   channelID,
 		seenEmoji:   seenEmoji,
 		ignoreEmoji: ignoreEmoji,
 		botUserID:   resp.UserID,
@@ -41,13 +39,13 @@ func NewClient(token, channelID, seenEmoji, ignoreEmoji string) (*Client, error)
 	}, nil
 }
 
-func (c *Client) FetchThreadParents() ([]slack.Message, error) {
+func (c *Client) FetchThreadParents(channelID string) ([]slack.Message, error) {
 	var all []slack.Message
 	cursor := ""
 
 	for {
 		params := &slack.GetConversationHistoryParameters{
-			ChannelID: c.channelID,
+			ChannelID: channelID,
 			Limit:     200,
 			Cursor:    cursor,
 		}
@@ -89,9 +87,9 @@ func (c *Client) IsBotMessage(msg slack.Message) bool {
 	return msg.User == c.botUserID
 }
 
-func (c *Client) FetchThreadReplies(parentTS string) ([]slack.Message, error) {
+func (c *Client) FetchThreadReplies(channelID, parentTS string) ([]slack.Message, error) {
 	msgs, _, _, err := c.api.GetConversationReplies(&slack.GetConversationRepliesParameters{
-		ChannelID: c.channelID,
+		ChannelID: channelID,
 		Timestamp: parentTS,
 	})
 	if err != nil {
@@ -105,7 +103,7 @@ func (c *Client) FetchThreadReplies(parentTS string) ([]slack.Message, error) {
 	return nil, nil
 }
 
-func (c *Client) BuildThread(parent slack.Message) (*Thread, error) {
+func (c *Client) BuildThread(channelID string, parent slack.Message) (*Thread, error) {
 	thread := &Thread{
 		Parent: Message{
 			User:      parent.User,
@@ -116,7 +114,7 @@ func (c *Client) BuildThread(parent slack.Message) (*Thread, error) {
 	}
 
 	if parent.ReplyCount > 0 {
-		replies, err := c.FetchThreadReplies(parent.Timestamp)
+		replies, err := c.FetchThreadReplies(channelID, parent.Timestamp)
 		if err != nil {
 			return nil, err
 		}
@@ -136,16 +134,16 @@ func (c *Client) BuildThread(parent slack.Message) (*Thread, error) {
 	return thread, nil
 }
 
-func (c *Client) AddSeenReaction(messageTS string) error {
+func (c *Client) AddSeenReaction(channelID, messageTS string) error {
 	return c.api.AddReaction(c.seenEmoji, slack.ItemRef{
-		Channel:   c.channelID,
+		Channel:   channelID,
 		Timestamp: messageTS,
 	})
 }
 
-func (c *Client) GetPermalink(messageTS string) (string, error) {
+func (c *Client) GetPermalink(channelID, messageTS string) (string, error) {
 	permalink, err := c.api.GetPermalink(&slack.PermalinkParameters{
-		Channel: c.channelID,
+		Channel: channelID,
 		Ts:      messageTS,
 	})
 	if err != nil {
@@ -154,9 +152,9 @@ func (c *Client) GetPermalink(messageTS string) (string, error) {
 	return permalink, nil
 }
 
-func (c *Client) PostThreadReply(parentTS, text string) error {
+func (c *Client) PostThreadReply(channelID, parentTS, text string) error {
 	_, _, err := c.api.PostMessage(
-		c.channelID,
+		channelID,
 		slack.MsgOptionText(text, false),
 		slack.MsgOptionTS(parentTS),
 	)

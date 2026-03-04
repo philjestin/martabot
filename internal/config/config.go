@@ -17,9 +17,15 @@ type Config struct {
 	GCPRegion   string
 	ClaudeModel string
 
-	LinearAPIKey   string
-	LinearTeamID   string
+	LinearAPIKey    string
+	LinearTeamID    string
 	LinearProjectID string
+	LinearLabelIDs  []string
+	LinearAssigneeID string
+	LinearStateID   string
+	LinearDocumentID string
+
+	InsightsChannelID string
 
 	DryRun  bool
 	Verbose bool
@@ -35,10 +41,14 @@ func Load(dryRun, verbose bool) (*Config, error) {
 		GCPProject:  os.Getenv("GCP_PROJECT"),
 		GCPRegion:   os.Getenv("GCP_REGION"),
 		ClaudeModel: os.Getenv("CLAUDE_MODEL"),
-		LinearAPIKey:    os.Getenv("LINEAR_API_KEY"),
-		LinearTeamID:    os.Getenv("LINEAR_TEAM_ID"),
-		LinearProjectID: os.Getenv("LINEAR_PROJECT_ID"),
-		DryRun:          dryRun,
+		LinearAPIKey:     os.Getenv("LINEAR_API_KEY"),
+		LinearTeamID:     os.Getenv("LINEAR_TEAM_ID"),
+		LinearProjectID:  os.Getenv("LINEAR_PROJECT_ID"),
+		LinearAssigneeID:  os.Getenv("LINEAR_ASSIGNEE_ID"),
+		LinearStateID:     os.Getenv("LINEAR_STATE_ID"),
+		LinearDocumentID:  os.Getenv("LINEAR_DOCUMENT_ID"),
+		InsightsChannelID: os.Getenv("INSIGHTS_CHANNEL_ID"),
+		DryRun:            dryRun,
 		Verbose:         verbose,
 	}
 
@@ -53,6 +63,13 @@ func Load(dryRun, verbose bool) (*Config, error) {
 	}
 	if pr := os.Getenv("POST_REPLY"); pr != "" {
 		cfg.PostReply = strings.EqualFold(pr, "true")
+	}
+	if labelIDs := os.Getenv("LINEAR_LABEL_IDS"); labelIDs != "" {
+		for _, id := range strings.Split(labelIDs, ",") {
+			if trimmed := strings.TrimSpace(id); trimmed != "" {
+				cfg.LinearLabelIDs = append(cfg.LinearLabelIDs, trimmed)
+			}
+		}
 	}
 
 	var missing []string

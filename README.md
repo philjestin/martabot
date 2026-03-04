@@ -1,17 +1,20 @@
 # Martabot
 
-A one-shot CLI tool that monitors a Slack feedback channel, uses Claude (via Vertex AI) to evaluate whether threads contain enough detail for actionable tickets, and creates Linear tickets when they do.
+A one-shot CLI tool that monitors Slack channels, uses Claude (via Vertex AI) to classify threads, and either creates Linear tickets for product feedback or appends summaries to a Linear document for insights/demos/learnings.
 
 ## How it works
 
-1. Fetches all top-level messages from a configured Slack channel
+1. Fetches all top-level messages from configured Slack channels (a feedback channel and an optional insights channel)
 2. Skips bot messages, threads with the "seen" emoji (`:eyes:`), and threads with the "ignore" emoji (`:no_entry_sign:`)
 3. For unseen threads, fetches all replies and resolves Slack user IDs to display names
-4. Sends the formatted thread to Claude — it decides if a ticket is warranted and generates title, description, and priority
-5. If yes: downloads any screenshots/images from the thread and uploads them to Linear
-6. Creates a Linear ticket via GraphQL API with the description, Slack thread link, and uploaded images
+4. Sends the formatted thread to Claude, which classifies it into one of three categories:
+   - **Feedback** (bug reports, feature requests, UX issues) — creates Linear tickets
+   - **Insight** (demos, learnings, customer insights) — appends a summary to a Linear document
+   - **Skip** (off-topic, logistics, chatter) — marks as seen and moves on
+5. For feedback: downloads any screenshots/images from the thread, uploads them to Linear, and creates tickets via the GraphQL API with the description, Slack thread link, and images
+6. For insights: formats a markdown entry (title, summary, Slack link, date) and appends it to a configured Linear document
 7. Adds the "seen" emoji reaction to the Slack message
-8. Optionally replies in the thread with a link to the created ticket
+8. Optionally replies in the thread with a link to created tickets
 
 ## Prerequisites
 
@@ -32,7 +35,8 @@ cp .env.example .env
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `SLACK_BOT_TOKEN` | yes | — | Slack bot token (`xoxb-...`) |
-| `SLACK_CHANNEL_ID` | yes | — | Channel ID to monitor |
+| `SLACK_CHANNEL_ID` | yes | — | Feedback channel ID to monitor |
+| `INSIGHTS_CHANNEL_ID` | no | — | Second channel for insights/demos/learnings |
 | `SEEN_EMOJI` | no | `eyes` | Emoji name for marking processed threads |
 | `IGNORE_EMOJI` | no | `no_entry_sign` | Emoji name for manually ignoring threads |
 | `POST_REPLY` | no | `true` | Reply in thread with ticket link |
@@ -42,6 +46,7 @@ cp .env.example .env
 | `LINEAR_API_KEY` | yes | — | Linear personal API key |
 | `LINEAR_TEAM_ID` | yes | — | Linear team UUID for ticket creation |
 | `LINEAR_PROJECT_ID` | no | — | Linear project UUID (assigns tickets to a project) |
+| `LINEAR_DOCUMENT_ID` | no | — | Linear document UUID for appending insights |
 
 ## Usage
 
